@@ -1,0 +1,82 @@
+# Row-then-column backward correction (Algorithm 2 of
+# docs/image_boards/backward_from_backprop.tex) on CIFAR-10 binary for the
+# 2-conv + max-pool + FC network:
+#   conv1 (RGB -> p_c, 3x3 pad 1, NO reduce) ->
+#   [k_c channel reduce + first-moment column] conv2 (3x3) + MAX-pool 4x4 (8x8) ->
+#   [k_3 channel reduce + first-moment column, flatten] FC p_f -> ridge on p_f.
+# One job (kc<val>_k3<val>) fits (or loads) the forward model once and runs,
+# for each rank fraction r, n_passes sequential rounds of the mean-field /
+# per-channel / importance arm (rcmfpci of the FFN campaign): boundary
+# conv2|FC = row step on conv2's reduce + column step on the FC's reduce,
+# rank r = round(r_frac * min(k_c, k_3)); boundary conv1|conv2 = column-only
+# step on conv2's reduce (conv1 has no reduce), rank round(r_frac * k_c).
+# Twin of backward_rowcol_cnn.yaml with the EXACT top-down chain in place of
+# the mean-field approximation (random branch per sample, frozen g^FC).
+# See scripts/sweep_backward_rowcol_cnn.py.
+seed: 0
+device: cuda
+root: ./data
+remap_labels: true
+activation: relu
+dataset:
+  name: cifar10
+  preset: animal_vehicle
+  n_train: 10000
+  n_test: 10000
+conv_p: 4096
+fc_p: 5000
+k_c: 512  # placeholder; the job (kc<val>_k3<val>) sets both
+k_3: 256
+arch_tag: c${conv_p}p${fc_p}mp  # mp = max-pool (the avg-pool campaign had no suffix)
+blocks:
+- reduce:
+    k: null
+  expand:
+    p: ${conv_p}
+    activation: ${activation}
+    kernel_size: 3
+    padding: 1
+    stride: 1
+- reduce:
+    k: ${k_c}
+    include_linear_mean: true
+  expand:
+    p: ${conv_p}
+    activation: ${activation}
+    kernel_size: 3
+    padding: 1
+    stride: 1
+  pool:
+    mode: max
+    kernel_size: 4
+    stride: 4
+- reduce:
+    k: ${k_3}
+    include_linear_mean: true
+  pre:
+  - flatten
+  expand:
+    p: ${fc_p}
+    activation: ${activation}
+final_reduce:
+  k: null
+
+job: kc512_k3256
+arm_tag: rcexpci  # EXACT chain, per-channel scale, importance swap
+r_fracs: [0.10, 0.20, 0.25]
+n_passes: 3
+beta: 4.0  # from the local scan with the corrected tau: beta=4 best over passes (n=10k, k_c=512, k_3=256)
+column_scale: per_channel
+swap_rule: importance
+chain: exact  # Algorithm 2 line 8 with the random branch kept per sample (Exact chain, top-down)
+tau_over: random_lift  # forward scale from the surviving forward/read columns only
+chunk_size: 128  # samples per streamed chunk (conv maps are 16 MB per sample at p_c=4096)
+ckpt_dir: null  # set by the launcher (forward state dicts, reused by every arm)
+
+batch_size: 256
+num_workers: 0
+alpha_min: -6
+alpha_max: 6
+alpha_num: 50
+
+output_dir: results/backward_rowcol_cnn_sweep/cifar10_cnn/layers_3

@@ -1,0 +1,11 @@
+results/
+imgs/
+data/cifar-10-batches-py/
+data/cifar-10-python.tar.gz
+slurm/logs/
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+.ruff_cache/
+.mypy_cache/

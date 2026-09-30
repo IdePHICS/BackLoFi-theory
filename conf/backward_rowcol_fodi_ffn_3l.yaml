@@ -1,0 +1,67 @@
+# Row-then-column backward correction by DAMPED INTERPOLATION on dense layers
+# (src/neural_lofi/training/backward_rowcol_dense.py) on CIFAR-10 binary, 3-layer
+# FFN p=5000, forward LoFi at every layer with the first-moment column (k+1
+# columns per reduce).  One job fits (or loads) the forward model at k once,
+# materialises it as dense layers, and runs for each rank fraction r of k
+# n_passes rounds of
+#     W_l     <- (1 - alpha) W_l     + alpha (V<- Gamma_row) R<-^T     (rows)
+#     W_{l+1} <- (1 - alpha) W_{l+1} + alpha (Q Gamma_col) U^T        (columns)
+# with the FIRST-ORDER backward signal (Approx. 6'), per-column scale beta = 0.25
+# forward coordinates (tau measured with the frozen forward filters on the
+# current features), no swap, no importance, no change of width.  The file-name
+# tag is arm_tag + 'a' + alpha in percent (rcfodia10 for alpha = 0.1).
+# See scripts/sweep_backward_rowcol.py.
+seed: 0
+device: cpu
+root: ./data
+remap_labels: true
+activation: relu
+dataset:
+  name: cifar10
+  preset: animal_vehicle
+  n_train: 10000
+  n_test: 10000
+all_p: 5000
+all_k: 16  # placeholder; the job (k<val>) sets it
+arch_tag: p5000sp
+blocks:
+- reduce:
+    k: ${all_k}
+    include_linear_mean: true
+  expand:
+    p: ${all_p}
+    activation: ${activation}
+- reduce:
+    k: ${all_k}
+    include_linear_mean: true
+  expand:
+    p: ${all_p}
+    activation: ${activation}
+- reduce:
+    k: ${all_k}
+    include_linear_mean: true
+  expand:
+    p: ${all_p}
+    activation: ${activation}
+final_reduce:
+  k: null
+
+job: k16
+arm_tag: rcfodi  # first-order chain, dense interpolation ('a<alpha%>' is appended)
+representation: dense
+alpha: 0.1  # interpolation weight of the estimate (set per arm)
+r_fracs: [0.05, 0.10, 0.25]
+n_passes: 20
+beta: 0.25  # scale of an estimate in forward coordinates (as every FFN arm)
+chain: first_order
+drift_guard: 8.0  # power-of-two rescale of a layer whose preactivation RMS drifted 8x
+chunk_size: 8192
+ckpt_dir: null  # set by the launcher (forward state dicts, reused by every arm)
+
+batch_size: 512
+num_workers: 0
+alpha_min: -6
+alpha_max: 6
+alpha_num: 50
+
+output_dir: results/backward_rowcol_sweep/cifar10_ffn/layers_3

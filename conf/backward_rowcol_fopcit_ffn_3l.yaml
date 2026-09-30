@@ -1,0 +1,69 @@
+# Row-then-column backward correction (Algorithm 2 of
+# docs/image_boards/backward_from_backprop.tex) on CIFAR-10 binary, 3-layer FFN
+# p=5000, LoFi at every layer with the FIRST-MOMENT column on (k+1 columns per
+# reduce).  One job fits (or loads) the forward model at k once and runs, for
+# each rank fraction r of k, n_passes sequential rounds: MEAN-FIELD signal,
+# full A_l thin SVD, fixed width: pass 1 replaces the r weakest forward columns
+# (Rayleigh quotient), later passes re-estimate those slots; column scale 'max'
+# with beta = 0.25 (strongest channel = a quarter of a forward coordinate).
+# Same as backward_rowcol_mfpci_ffn_3l.yaml with the forward scale tau taken over
+# the surviving random-lift (forward + read) columns only (tau_over), so the
+# appends of passes >= 2 are not inflated by the paired columns.
+# Twin of backward_rowcol_mfpcit_ffn_3l.yaml with the FIRST-ORDER backward signal (Approx. 6' of
+# the notes) in place of the mean-field chain: the spike term of the boundary
+# above at order zero, read through the Phase-I blocks, at the installed amplitude.
+# See scripts/sweep_backward_rowcol.py.
+seed: 0
+device: cpu
+root: ./data
+remap_labels: true
+activation: relu
+dataset:
+  name: cifar10
+  preset: animal_vehicle
+  n_train: 10000
+  n_test: 10000
+all_p: 5000
+all_k: 16  # placeholder; the job (k<val>) sets it
+arch_tag: p5000sp
+blocks:
+- reduce:
+    k: ${all_k}
+    include_linear_mean: true
+  expand:
+    p: ${all_p}
+    activation: ${activation}
+- reduce:
+    k: ${all_k}
+    include_linear_mean: true
+  expand:
+    p: ${all_p}
+    activation: ${activation}
+- reduce:
+    k: ${all_k}
+    include_linear_mean: true
+  expand:
+    p: ${all_p}
+    activation: ${activation}
+final_reduce:
+  k: null
+
+job: k16
+arm_tag: rcfopcit  # file-name tag of the arm
+r_fracs: [0.05, 0.10, 0.15, 0.20, 0.25]
+n_passes: 4
+beta: 0.25  # from the local scan: max convention, stable over four passes
+column_scale: per_channel  # every channel = beta forward coordinates (amplitudes equalised)
+swap_rule: importance  # every swap drops the r columns of lowest gradient importance (section 'Feature importance at fixed budget')
+chain: first_order  # Approx. 6': Phase-I gain + order-zero spike (SVD-form q0 at the installed amplitude)
+tau_over: random_lift  # forward scale from the surviving forward/read columns only
+chunk_size: 8192
+ckpt_dir: null  # set by the launcher (forward state dicts, reused by every arm)
+
+batch_size: 512
+num_workers: 0
+alpha_min: -6
+alpha_max: 6
+alpha_num: 50
+
+output_dir: results/backward_rowcol_sweep/cifar10_ffn/layers_3

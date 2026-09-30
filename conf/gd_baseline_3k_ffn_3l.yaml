@@ -1,0 +1,43 @@
+# Full-batch gradient-descent baseline, 3 hidden layers of width 5000.
+#
+# The folded GD twin of the LoFi block config: one trainable dense layer per
+# block plus a linear scalar readout, trained by plain constant-step gradient
+# descent on the mean squared error against the plus/minus-one labels, with the
+# whole training set as one batch, for 3000 steps.  Test error is the sign-error rate, recorded
+# at 10 log-spaced step counts.  Same twin as conf/gd_baseline_ffn_3l.yaml (10^4 steps).
+# See scripts/sweep_gd_baseline.py.
+seed: 0
+device: cuda
+root: ./data
+remap_labels: true
+activation: relu
+dataset:
+  name: cifar10
+  preset: animal_vehicle
+  n_train: 10000
+  n_test: 10000
+all_p: 5000
+arch_tag: p5000
+blocks:
+- reduce:
+    k: null
+  expand:
+    p: ${all_p}
+    activation: ${activation}
+- reduce:
+    k: null
+  expand:
+    p: ${all_p}
+    activation: ${activation}
+- reduce:
+    k: null
+  expand:
+    p: ${all_p}
+    activation: ${activation}
+
+lr: 0.1
+max_steps: 3000
+n_checkpoints: 10
+
+num_workers: 0
+output_dir: results/gd_baseline_3k/cifar10_ffn/layers_3

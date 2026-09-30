@@ -1,0 +1,63 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "neural-lofi"
+version = "0.5.0"
+description = "Code for 'Neural LoFi with Backward Coupling: A Spectral Theory of Cross-Layer Feature Learning': layer-wise spectral feature learning, its backward correction and the gradient-descent baselines"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.11"
+authors = [
+    {name = "Matteo Vilucchio"},
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+    "torch>=2.0",
+    "torchvision>=0.15",
+    "numpy>=1.23",
+    "scipy>=1.10",
+    "scikit-learn>=1.2",
+    "omegaconf>=2.3",
+    "pandas>=2.0",
+    "matplotlib>=3.7",
+    "pyyaml>=6.0",
+    "tqdm>=4.0",
+]
+
+[project.optional-dependencies]
+text = [
+    "datasets>=2.14",
+    "transformers>=4.30",
+]
+
+[project.urls]
+Repository = "https://github.com/IdePHICS/BackLoFi-theory"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP"]
+# Allow uppercase single-letter math variable names (X, H, W, C, N, D)
+# and the conventional F alias for torch.nn.functional — standard in ML code.
+ignore = ["N803", "N806", "N812"]
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true

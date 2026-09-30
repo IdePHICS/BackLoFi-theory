@@ -1,0 +1,43 @@
+# Baselines for the row-then-column campaign: linear ridge on the flattened
+# pixels and a 3-layer random-features network (p=5000, every reduce the
+# identity, no LoFi filter), both with the training-only LOO ridge readout.
+# See scripts/sweep_baselines_pixels_rf.py.
+seed: 0
+device: cpu
+root: ./data
+remap_labels: true
+activation: relu
+dataset:
+  name: cifar10
+  preset: animal_vehicle
+  n_train: 10000
+  n_test: 10000
+all_p: 5000
+all_k: 0  # unused: every reduce is the identity
+arch_tag: p5000rf
+blocks:
+- reduce:
+    k: null
+  expand:
+    p: ${all_p}
+    activation: ${activation}
+- reduce:
+    k: null
+  expand:
+    p: ${all_p}
+    activation: ${activation}
+- reduce:
+    k: null
+  expand:
+    p: ${all_p}
+    activation: ${activation}
+final_reduce:
+  k: null
+
+batch_size: 512
+num_workers: 0
+alpha_min: -6
+alpha_max: 6
+alpha_num: 50
+
+output_dir: results/backward_rowcol_sweep/cifar10_ffn/baselines

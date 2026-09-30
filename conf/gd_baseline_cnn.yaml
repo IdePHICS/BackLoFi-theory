@@ -1,0 +1,62 @@
+# FULL-BATCH gradient descent on the folded GD twin of the CNN of the
+# row-then-column campaign: conv1 4096 -> conv2 4096 + max-pool 4x4 -> FC 5000 ->
+# linear readout (1.46e9 parameters).  Same protocol as the FFN panel
+# (conf/gd_baseline_3k_ffn_3l.yaml): constant learning rate, no momentum, no
+# weight decay, MSE on the +-1 labels, the WHOLE training set per step, at most
+# 5000 steps, test error at log-spaced steps.  The exact full-batch gradient is
+# accumulated over chunks (a 4096-channel 32x32 map is 16 MB per image).
+# Cost on an RTX 6000 Ada (bf16): 5.8 ms per image per step, i.e. 3000 steps take
+# 2.4 h at n = 500, 24 h at n = 5k, 10 days at n = 50k.
+seed: 0
+device: cuda
+root: ./data
+remap_labels: true
+activation: relu
+dataset:
+  name: cifar10
+  preset: animal_vehicle
+  n_train: 500
+  n_test: 10000
+conv_p: 4096
+fc_p: 5000
+arch_tag: c${conv_p}p${fc_p}mp
+blocks:
+- reduce:
+    k: null
+  expand:
+    p: ${conv_p}
+    activation: ${activation}
+    kernel_size: 3
+    padding: 1
+    stride: 1
+- reduce:
+    k: null
+  expand:
+    p: ${conv_p}
+    activation: ${activation}
+    kernel_size: 3
+    padding: 1
+    stride: 1
+  pool:
+    mode: max
+    kernel_size: 4
+    stride: 4
+- reduce:
+    k: null
+  pre: [flatten]
+  expand:
+    p: ${fc_p}
+    activation: ${activation}
+
+lr: 0.003
+max_steps: 5000
+# steps at which the test error is recorded: the log-spaced grid of the 3000-step
+# runs plus 4000 and 5000, so that extended and fresh runs share their steps
+checkpoint_steps: [1, 2, 6, 14, 35, 85, 208, 506, 1232, 3000, 4000, 5000]
+n_checkpoints: 10      # used only when checkpoint_steps is absent
+chunk_size: 128        # images per forward/backward chunk of the accumulation
+precision: bf16        # bf16 (autocast + channels_last) | tf32
+ckpt_every_minutes: 60 # full state for resuming (5.8 GB per running cell)
+
+num_workers: 0
+output_dir: results/gd_baseline_cnn/cifar10_cnn/layers_3

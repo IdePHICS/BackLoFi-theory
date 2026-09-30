@@ -1,0 +1,31 @@
+#!/bin/bash
+# Generic SLURM array template: one experiment cell per array task.
+# Adapt the resources and the grid; every cell is skip-if-exists, so a
+# resubmitted array resumes where it stopped.
+#SBATCH --job-name=lofi
+#SBATCH --partition=<partition>
+#SBATCH --gres=gpu:1
+#SBATCH --cpus-per-task=16
+#SBATCH --mem=90G
+#SBATCH --time=02:00:00
+#SBATCH --array=0-104
+#SBATCH --output=slurm/logs/%x_%A_%a.out
+set -euo pipefail
+cd "<path to this repository>"
+source .venv/bin/activate
+export RESULTS_BASE_PATH="<scratch>/results"   # optional: results root
+
+# Example grid (n x seed x learning rate = 7 x 3 x 5 = 105 tasks); the last
+# index is the fastest.
+NS=(500 1000 2000 5000 10000 20000 50000)
+SEEDS=(0 1 2)
+LRS=(0.001 0.003 0.005)
+per_n=$(( ${#SEEDS[@]} * ${#LRS[@]} ))
+n_idx=$(( SLURM_ARRAY_TASK_ID / per_n ))
+rem=$(( SLURM_ARRAY_TASK_ID % per_n ))
+s_idx=$(( rem / ${#LRS[@]} ))
+lr_idx=$(( rem % ${#LRS[@]} ))
+N="${NS[$n_idx]}"; S="${SEEDS[$s_idx]}"; LR="${LRS[$lr_idx]}"
+
+srun python scripts/sweep_gd_baseline_cnn.py --conf conf/gd_baseline_cnn.yaml \
+  --override "dataset.n_train=${N}" "seed=${S}" "lr=${LR}"

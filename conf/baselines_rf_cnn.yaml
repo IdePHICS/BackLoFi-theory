@@ -1,0 +1,56 @@
+# Random-features baseline of the CNN row-then-column campaign: the same
+# architecture as conf/backward_rowcol_cnn.yaml with IDENTITY reduces
+# everywhere (no LoFi filter): conv1 4096 -> conv2 reads all 4096 channels
+# -> max-pool 4x4 -> flatten 4096*64 -> FC 5000 -> ridge on the 5000 outputs.
+# See scripts/sweep_baseline_rf_cnn.py.
+seed: 0
+device: cuda
+root: ./data
+remap_labels: true
+activation: relu
+dataset:
+  name: cifar10
+  preset: animal_vehicle
+  n_train: 10000
+  n_test: 10000
+conv_p: 4096
+fc_p: 5000
+arch_tag: c${conv_p}p${fc_p}mp  # mp = max-pool (the avg-pool campaign had no suffix)
+blocks:
+- reduce:
+    k: null
+  expand:
+    p: ${conv_p}
+    activation: ${activation}
+    kernel_size: 3
+    padding: 1
+    stride: 1
+- reduce:
+    k: null
+  expand:
+    p: ${conv_p}
+    activation: ${activation}
+    kernel_size: 3
+    padding: 1
+    stride: 1
+  pool:
+    mode: max
+    kernel_size: 4
+    stride: 4
+- reduce:
+    k: null
+  pre:
+  - flatten
+  expand:
+    p: ${fc_p}
+    activation: ${activation}
+final_reduce:
+  k: null
+
+batch_size: 64
+num_workers: 0
+alpha_min: -6
+alpha_max: 6
+alpha_num: 50
+
+output_dir: results/backward_rowcol_cnn_sweep/cifar10_cnn/baselines
