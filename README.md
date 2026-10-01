@@ -1,8 +1,9 @@
 # Neural LoFi with Backward Coupling
 
 Code for the paper *Neural LoFi with Backward Coupling: A Spectral Theory of
-Cross-Layer Feature Learning* (IdePHICS laboratory, EPFL). It contains the
-`neural_lofi` package — layer-wise spectral training with random features,
+Cross-Layer Feature Learning* (IdePHICS laboratory, EPFL).
+
+It contains the `neural_lofi` package — layer-wise spectral training with random features,
 label-aware eigenreduction and a ridge readout — the row-then-column backward
 correction of Algorithm 2 (fully connected and convolutional networks,
 fixed-width swap and damped dense update), the full-batch gradient-descent
