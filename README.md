@@ -1,5 +1,12 @@
 # Neural LoFi with Backward Coupling
 
+
+<p align="center">
+  <img src="figures/d2d5a2d3-0a18-4506-a8cb-322267756364.png" width="46%" alt="Neural LoFi">
+  <img src="figures/Backlofi_ Gradients by Golden Hour.png" width="46%" alt="BackLoFi">
+</p>
+
+
 Code for the paper *Neural LoFi with Backward Coupling: A Spectral Theory of
 Cross-Layer Feature Learning* (IdePHICS laboratory, EPFL).
 
